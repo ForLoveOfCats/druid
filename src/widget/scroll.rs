@@ -32,6 +32,9 @@ use crate::kurbo::{Affine, RoundedRect};
 const SCROLL_BAR_WIDTH: f64 = 8.;
 const SCROLL_BAR_PAD: f64 = 2.;
 
+type EventDelegateFn<T, W> =
+    dyn Fn(Event, &mut Scroll<T, W>, &mut T, &Env, &mut EventCtx) -> Option<Event>;
+
 #[derive(Debug, Clone)]
 enum ScrollDirection {
     Horizontal,
@@ -73,27 +76,29 @@ impl Default for ScrollBarsState {
 /// when the child's bounds are larger than the viewport.
 ///
 /// The child is laid out with completely unconstrained layout bounds.
-pub struct Scroll<T: Data> {
-    child: WidgetPod<T, Box<dyn Widget<T>>>,
+pub struct Scroll<T: Data, W: Widget<T>> {
+    child: WidgetPod<T, W>,
     child_size: Size,
     scroll_offset: Vec2,
     direction: ScrollDirection,
     scroll_bars: ScrollBarsState,
+    delegate: Option<Box<EventDelegateFn<T, W>>>,
 }
 
-impl<T: Data> Scroll<T> {
+impl<T: Data, W: Widget<T>> Scroll<T, W> {
     /// Create a new scroll container.
     ///
     /// This method will allow scrolling in all directions if child's bounds
     /// are larger than the viewport. Use [vertical](#method.vertical)
     /// and [horizontal](#method.horizontal) methods to limit scroll behavior.
-    pub fn new(child: impl Widget<T> + 'static) -> Scroll<T> {
+    pub fn new(child: W) -> Scroll<T, W> {
         Scroll {
-            child: WidgetPod::new(child).boxed(),
+            child: WidgetPod::new(child),
             child_size: Default::default(),
             scroll_offset: Vec2::new(0.0, 0.0),
             direction: ScrollDirection::All,
             scroll_bars: ScrollBarsState::default(),
+            delegate: None,
         }
     }
 
@@ -117,10 +122,18 @@ impl<T: Data> Scroll<T> {
         self
     }
 
+    pub fn with_delegate<F>(mut self, f: F) -> Self
+    where
+        F: Fn(Event, &mut Scroll<T, W>, &mut T, &Env, &mut EventCtx) -> Option<Event> + 'static,
+    {
+        self.delegate = Some(Box::new(f));
+        self
+    }
+
     /// Update the scroll.
     ///
     /// Returns `true` if the scroll has been updated.
-    fn scroll(&mut self, delta: Vec2, size: Size) -> bool {
+    pub fn scroll(&mut self, delta: Vec2, size: Size) -> bool {
         let mut offset = self.scroll_offset + delta;
         offset.x = offset.x.min(self.child_size.width - size.width).max(0.0);
         offset.y = offset.y.min(self.child_size.height - size.height).max(0.0);
@@ -130,6 +143,19 @@ impl<T: Data> Scroll<T> {
         } else {
             false
         }
+    }
+
+    /// Makes the scrollbars visible, and resets the fade timer.
+    pub fn reset_scrollbar_fade(&mut self, ctx: &mut EventCtx) {
+        // Display scroll bars and schedule their disappearance
+        self.scroll_bars.opacity = 0.7;
+        let deadline = Instant::now() + Duration::from_millis(1500);
+        self.scroll_bars.timer_id = ctx.request_timer(deadline);
+    }
+
+    /// Returns the current scroll offset
+    pub fn offset(&self) -> Vec2 {
+        self.scroll_offset
     }
 
     /// Draw scroll bars.
@@ -200,7 +226,7 @@ impl<T: Data> Scroll<T> {
     }
 }
 
-impl<T: Data> Widget<T> for Scroll<T> {
+impl<T: Data, W: Widget<T>> Widget<T> for Scroll<T, W> {
     fn paint(&mut self, paint_ctx: &mut PaintCtx, base_state: &BaseState, data: &T, env: &Env) {
         if let Err(e) = paint_ctx.save() {
             error!("saving render context failed: {:?}", e);
@@ -240,6 +266,8 @@ impl<T: Data> Widget<T> for Scroll<T> {
         };
 
         match event {
+            // Show the scrollbars any time our size changes
+            Event::Size(_) => self.reset_scrollbar_fade(ctx),
             // The scroll bars will fade immediately if there's some other widget requesting animation.
             // Guard by the timer id being invalid.
             Event::AnimFrame(interval) if self.scroll_bars.timer_id == TimerToken::INVALID => {
@@ -263,11 +291,7 @@ impl<T: Data> Widget<T> for Scroll<T> {
                 if self.scroll(wheel.delta, size) {
                     ctx.invalidate();
                     ctx.set_handled();
-
-                    // Display scroll bars and schedule their disappearance
-                    self.scroll_bars.opacity = 0.7;
-                    let deadline = Instant::now() + Duration::from_millis(1500);
-                    self.scroll_bars.timer_id = ctx.request_timer(deadline);
+                    self.reset_scrollbar_fade(ctx);
                 }
             }
         }
