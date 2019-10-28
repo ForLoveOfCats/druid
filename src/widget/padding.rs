@@ -14,6 +14,7 @@
 
 //! A widget that just adds padding during layout.
 
+use crate::kurbo::Insets;
 use crate::{
     BaseState, BoxConstraints, Data, Env, Event, EventCtx, LayoutCtx, PaintCtx, Point, Rect, Size,
     UpdateCtx, Widget, WidgetPod,
@@ -37,6 +38,33 @@ impl<T: Data> Padding<T> {
             right: padding,
             top: padding,
             bottom: padding,
+            child: WidgetPod::new(child).boxed(),
+        }
+    }
+
+    /// Create a new widget with the specified padding. This can either be an instance
+    /// of [`kurbo::Insets`], or it can be a tuple of floats.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use druid::widget::{Label, Padding};
+    /// use druid::kurbo::Insets;
+    ///
+    /// let child: Label<()> = Label::new("I need my space!");
+    /// let padding = Padding::with_insets((10.0, 20.0), child);
+    /// // equivalent:
+    /// let moar_padding = Padding::with_insets(Insets::uniform_xy(10.0, 20.0), padding);
+    /// ```
+    ///
+    /// [`kurbo::Insets`]: https://docs.rs/kurbo/0.5.3/kurbo/struct.Insets.html
+    pub fn with_insets(insets: impl Into<Insets>, child: impl Widget<T> + 'static) -> Padding<T> {
+        let insets = insets.into();
+        Padding {
+            left: insets.x0,
+            right: insets.x1,
+            top: insets.y0,
+            bottom: insets.y1,
             child: WidgetPod::new(child).boxed(),
         }
     }
