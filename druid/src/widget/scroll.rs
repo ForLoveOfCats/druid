@@ -26,6 +26,7 @@ use crate::{
 
 const SCROLLBAR_MIN_SIZE: f64 = 45.0;
 
+#[derive(PartialEq)]
 enum ScrollbarStyle {
     Overlay,
     Inlay,
@@ -184,11 +185,14 @@ impl<T, W: Widget<T>> Scroll<T, W> {
 
     /// Makes the scrollbars visible, and resets the fade timer.
     pub fn reset_scrollbar_fade(&mut self, ctx: &mut EventCtx, env: &Env) {
-        // Display scroll bars and schedule their disappearance
+        // Display scroll bars and if overlay style schedule their disappearance
         self.scrollbars.opacity = env.get(theme::SCROLLBAR_MAX_OPACITY);
-        let fade_delay = env.get(theme::SCROLLBAR_FADE_DELAY);
-        let deadline = Instant::now() + Duration::from_millis(fade_delay);
-        self.scrollbars.timer_id = ctx.request_timer(deadline);
+
+        if self.scrollbar_style == ScrollbarStyle::Overlay {
+            let fade_delay = env.get(theme::SCROLLBAR_FADE_DELAY);
+            let deadline = Instant::now() + Duration::from_millis(fade_delay);
+            self.scrollbars.timer_id = ctx.request_timer(deadline);
+        }
     }
 
     /// Returns the current scroll offset.
