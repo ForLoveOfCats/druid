@@ -210,7 +210,7 @@ impl<T, W: Widget<T>> Scroll<T, W> {
         let length = (percent_visible * viewport.height()).ceil();
         let length = length.max(SCROLLBAR_MIN_SIZE);
 
-        let vertical_padding = bar_pad + bar_pad + bar_width;
+        let vertical_padding = bar_pad + bar_pad + bar_width + bar_pad;
 
         let top_y_offset =
             ((viewport.height() - length - vertical_padding) * percent_scrolled).ceil();
@@ -235,7 +235,7 @@ impl<T, W: Widget<T>> Scroll<T, W> {
         let length = (percent_visible * viewport.width()).ceil();
         let length = length.max(SCROLLBAR_MIN_SIZE);
 
-        let horizontal_padding = bar_pad + bar_pad + bar_width;
+        let horizontal_padding = bar_pad + bar_pad + bar_width + bar_pad;
 
         let left_x_offset =
             ((viewport.width() - length - horizontal_padding) * percent_scrolled).ceil();
