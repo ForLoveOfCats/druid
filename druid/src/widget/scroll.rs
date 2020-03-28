@@ -26,6 +26,11 @@ use crate::{
 
 const SCROLLBAR_MIN_SIZE: f64 = 45.0;
 
+enum ScrollbarStyle {
+    Overlay,
+    Inlay,
+}
+
 #[derive(Debug, Clone)]
 enum ScrollDirection {
     Horizontal,
@@ -110,6 +115,7 @@ pub struct Scroll<T, W> {
     child: WidgetPod<T, W>,
     child_size: Size,
     scroll_offset: Vec2,
+    scrollbar_style: ScrollbarStyle,
     direction: ScrollDirection,
     scrollbars: ScrollbarsState,
 }
@@ -125,9 +131,16 @@ impl<T, W: Widget<T>> Scroll<T, W> {
             child: WidgetPod::new(child),
             child_size: Default::default(),
             scroll_offset: Vec2::new(0.0, 0.0),
+            scrollbar_style: ScrollbarStyle::Overlay,
             direction: ScrollDirection::All,
             scrollbars: ScrollbarsState::default(),
         }
+    }
+
+    //TODO(ForLoveOfCats) Have a seperate constructor for each style
+    pub fn inlay_scrollbars(mut self) -> Self {
+        self.scrollbar_style = ScrollbarStyle::Inlay;
+        self
     }
 
     /// Limit scroll behavior to allow only vertical scrolling (Y-axis).
@@ -293,8 +306,18 @@ impl<T, W: Widget<T>> Scroll<T, W> {
 
 impl<T: Data, W: Widget<T>> Widget<T> for Scroll<T, W> {
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut T, env: &Env) {
+        let bar_width = env.get(theme::SCROLLBAR_WIDTH);
+        let bar_pad = env.get(theme::SCROLLBAR_PAD);
+        let track_width = bar_pad + bar_width + bar_pad;
+
         let size = ctx.size();
         let viewport = Rect::from_origin_size(Point::ORIGIN, size);
+
+        let paint_size = match self.scrollbar_style {
+            ScrollbarStyle::Overlay => ctx.size(),
+            ScrollbarStyle::Inlay => ctx.size() - Size::new(track_width, track_width),
+        };
+        let paint_viewport = Rect::from_origin_size(Point::ORIGIN, paint_size);
 
         let scrollbar_is_hovered = match event {
             Event::MouseMoved(e) | Event::MouseUp(e) | Event::MouseDown(e) => {
@@ -311,18 +334,18 @@ impl<T: Data, W: Widget<T>> Widget<T> for Scroll<T, W> {
                 Event::MouseMoved(event) => {
                     match self.scrollbars.held {
                         BarHeldState::Vertical(offset) => {
-                            let scale_y = viewport.height() / self.child_size.height;
+                            let scale_y = paint_viewport.height() / self.child_size.height;
                             let bounds = self.calc_vertical_bar_bounds(viewport, &env);
                             let mouse_y = event.pos.y + self.scroll_offset.y;
                             let delta = mouse_y - bounds.y0 - offset;
-                            self.scroll(Vec2::new(0f64, (delta / scale_y).ceil()), size);
+                            self.scroll(Vec2::new(0f64, (delta / scale_y).ceil()), paint_size);
                         }
                         BarHeldState::Horizontal(offset) => {
-                            let scale_x = viewport.width() / self.child_size.width;
+                            let scale_x = paint_viewport.width() / self.child_size.width;
                             let bounds = self.calc_horizontal_bar_bounds(viewport, &env);
                             let mouse_x = event.pos.x + self.scroll_offset.x;
                             let delta = mouse_x - bounds.x0 - offset;
-                            self.scroll(Vec2::new((delta / scale_x).ceil(), 0f64), size);
+                            self.scroll(Vec2::new((delta / scale_x).ceil(), 0f64), paint_size);
                         }
                         _ => (),
                     }
@@ -401,7 +424,7 @@ impl<T: Data, W: Widget<T>> Widget<T> for Scroll<T, W> {
 
         if !ctx.is_handled() {
             if let Event::Wheel(wheel) = event {
-                if self.scroll(wheel.delta, size) {
+                if self.scroll(wheel.delta, paint_size) {
                     ctx.request_paint();
                     ctx.set_handled();
                     self.reset_scrollbar_fade(ctx, &env);
@@ -453,13 +476,27 @@ impl<T: Data, W: Widget<T>> Widget<T> for Scroll<T, W> {
     }
 
     fn paint(&mut self, ctx: &mut PaintCtx, data: &T, env: &Env) {
+        let bar_width = env.get(theme::SCROLLBAR_WIDTH);
+        let bar_pad = env.get(theme::SCROLLBAR_PAD);
+        let track_width = bar_pad + bar_width + bar_pad;
+
         let viewport = ctx.size().to_rect();
+        let paint_viewport = match self.scrollbar_style {
+            ScrollbarStyle::Overlay => viewport,
+            ScrollbarStyle::Inlay => (ctx.size() - Size::new(track_width, track_width)).to_rect(),
+        };
+
+        ctx.with_save(|ctx| {
+            ctx.clip(paint_viewport);
+            ctx.transform(Affine::translate(-self.scroll_offset));
+
+            let visible = paint_viewport.with_origin(self.scroll_offset.to_point());
+            ctx.with_child_ctx(visible, |ctx| self.child.paint(ctx, data, env));
+        });
+
         ctx.with_save(|ctx| {
             ctx.clip(viewport);
             ctx.transform(Affine::translate(-self.scroll_offset));
-
-            let visible = viewport.with_origin(self.scroll_offset.to_point());
-            ctx.with_child_ctx(visible, |ctx| self.child.paint(ctx, data, env));
 
             self.draw_bars(ctx, viewport, env);
         });

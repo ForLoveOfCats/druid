@@ -32,14 +32,14 @@ fn build_app() -> impl Widget<u32> {
             row.add_child(
                 Container::new(SizedBox::empty().width(200.0).height(200.0))
                     .background(Color::rgb(1.0 * col_progress, 1.0 * row_progress, 1.0))
-                    .border(Color::rgb(0.0, 1.0, 0.0,), 1.),
+                    .border(Color::rgb(0.0, 1.0, 0.0), 1.),
             );
         }
 
         col.add_child(row);
     }
 
-    Scroll::new(col)
+    Scroll::new(col).inlay_scrollbars()
 }
 
 fn main() {
