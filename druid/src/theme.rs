@@ -52,6 +52,8 @@ pub const TEXTBOX_BORDER_RADIUS: Key<f64> = Key::new("textbox_radius");
 
 pub const SCROLLBAR_COLOR: Key<Color> = Key::new("scrollbar_color");
 pub const SCROLLBAR_BORDER_COLOR: Key<Color> = Key::new("scrollbar_border_color");
+pub const SCROLLBAR_BACKGROUND_COLOR: Key<Color> = Key::new("scrollbar_background_color");
+pub const SCROLLBAR_CORNER_COLOR: Key<Color> = Key::new("scrollbar_corner_color");
 pub const SCROLLBAR_MAX_OPACITY: Key<f64> = Key::new("scrollbar_max_opacity");
 pub const SCROLLBAR_FADE_DELAY: Key<u64> = Key::new("scrollbar_fade_time");
 pub const SCROLLBAR_WIDTH: Key<f64> = Key::new("scrollbar_width");
@@ -88,6 +90,8 @@ pub fn init() -> Env {
         .adding(TEXTBOX_BORDER_RADIUS, 2.)
         .adding(SCROLLBAR_COLOR, Color::rgb8(0xff, 0xff, 0xff))
         .adding(SCROLLBAR_BORDER_COLOR, Color::rgb8(0x77, 0x77, 0x77))
+        .adding(SCROLLBAR_BACKGROUND_COLOR, Color::rgb8(0xff, 0xff, 0xff))
+        .adding(SCROLLBAR_CORNER_COLOR, Color::rgb8(0xC8, 0xC8, 0xC8))
         .adding(SCROLLBAR_MAX_OPACITY, 0.7)
         .adding(SCROLLBAR_FADE_DELAY, 1500u64)
         .adding(SCROLLBAR_WIDTH, 8.)

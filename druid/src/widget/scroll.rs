@@ -106,6 +106,12 @@ impl ScrollbarsState {
     }
 }
 
+fn calc_track_width(env: &Env) -> f64 {
+    let bar_width = env.get(theme::SCROLLBAR_WIDTH);
+    let bar_pad = env.get(theme::SCROLLBAR_PAD);
+    bar_pad + bar_width + bar_pad
+}
+
 /// A container that scrolls its contents.
 ///
 /// This container holds a single child, and uses the wheel to scroll it
@@ -210,7 +216,7 @@ impl<T, W: Widget<T>> Scroll<T, W> {
         let length = (percent_visible * viewport.height()).ceil();
         let length = length.max(SCROLLBAR_MIN_SIZE);
 
-        let vertical_padding = bar_pad + bar_pad + bar_width + bar_pad;
+        let vertical_padding = bar_pad + calc_track_width(env);
 
         let top_y_offset =
             ((viewport.height() - length - vertical_padding) * percent_scrolled).ceil();
@@ -235,7 +241,7 @@ impl<T, W: Widget<T>> Scroll<T, W> {
         let length = (percent_visible * viewport.width()).ceil();
         let length = length.max(SCROLLBAR_MIN_SIZE);
 
-        let horizontal_padding = bar_pad + bar_pad + bar_width + bar_pad;
+        let horizontal_padding = bar_pad + calc_track_width(env);
 
         let left_x_offset =
             ((viewport.width() - length - horizontal_padding) * percent_scrolled).ceil();
@@ -248,6 +254,41 @@ impl<T, W: Widget<T>> Scroll<T, W> {
         let y1 = self.scroll_offset.y + viewport.height() - bar_pad;
 
         Rect::new(x0, y0, x1, y1)
+    }
+
+    /// Draw scrollbar backgrounds regardless of scrollbar style
+    fn draw_scrollbar_background(&self, ctx: &mut PaintCtx, viewport: Rect, env: &Env) {
+        let track_width = calc_track_width(env);
+
+        let background_brush = ctx
+            .render_ctx
+            .solid_brush(env.get(theme::SCROLLBAR_BACKGROUND_COLOR));
+        let corner_brush = ctx
+            .render_ctx
+            .solid_brush(env.get(theme::SCROLLBAR_CORNER_COLOR));
+
+        let vertical_rect = Rect::new(
+            self.scroll_offset.x + viewport.width() - track_width,
+            self.scroll_offset.y,
+            self.scroll_offset.x + viewport.width(),
+            self.scroll_offset.y + viewport.height() - track_width,
+        );
+        let horizontal_rect = Rect::new(
+            self.scroll_offset.x,
+            self.scroll_offset.y + viewport.height() - track_width,
+            self.scroll_offset.x + viewport.width() - track_width,
+            self.scroll_offset.y + viewport.height(),
+        );
+        let corner_rect = Rect::new(
+            self.scroll_offset.x + viewport.width() - track_width,
+            self.scroll_offset.y + viewport.height() - track_width,
+            self.scroll_offset.x + viewport.width(),
+            self.scroll_offset.y + viewport.height(),
+        );
+
+        ctx.render_ctx.fill(vertical_rect, &background_brush);
+        ctx.render_ctx.fill(horizontal_rect, &background_brush);
+        ctx.render_ctx.fill(corner_rect, &corner_brush);
     }
 
     /// Draw scroll bars.
@@ -310,9 +351,7 @@ impl<T, W: Widget<T>> Scroll<T, W> {
 
 impl<T: Data, W: Widget<T>> Widget<T> for Scroll<T, W> {
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut T, env: &Env) {
-        let bar_width = env.get(theme::SCROLLBAR_WIDTH);
-        let bar_pad = env.get(theme::SCROLLBAR_PAD);
-        let track_width = bar_pad + bar_width + bar_pad;
+        let track_width = calc_track_width(env);
 
         let size = ctx.size();
         let viewport = Rect::from_origin_size(Point::ORIGIN, size);
@@ -480,9 +519,7 @@ impl<T: Data, W: Widget<T>> Widget<T> for Scroll<T, W> {
     }
 
     fn paint(&mut self, ctx: &mut PaintCtx, data: &T, env: &Env) {
-        let bar_width = env.get(theme::SCROLLBAR_WIDTH);
-        let bar_pad = env.get(theme::SCROLLBAR_PAD);
-        let track_width = bar_pad + bar_width + bar_pad;
+        let track_width = calc_track_width(env);
 
         let viewport = ctx.size().to_rect();
         let paint_viewport = match self.scrollbar_style {
@@ -502,6 +539,7 @@ impl<T: Data, W: Widget<T>> Widget<T> for Scroll<T, W> {
             ctx.clip(viewport);
             ctx.transform(Affine::translate(-self.scroll_offset));
 
+            self.draw_scrollbar_background(ctx, viewport, env);
             self.draw_bars(ctx, viewport, env);
         });
     }
