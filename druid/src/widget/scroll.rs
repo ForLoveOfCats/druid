@@ -83,6 +83,8 @@ struct ScrollbarsState {
     timer_id: TimerToken,
     hovered: BarHoveredState,
     held: BarHeldState,
+    vertical_required: bool,
+    horizontal_required: bool,
 }
 
 impl Default for ScrollbarsState {
@@ -92,6 +94,8 @@ impl Default for ScrollbarsState {
             timer_id: TimerToken::INVALID,
             hovered: BarHoveredState::None,
             held: BarHeldState::None,
+            vertical_required: false,
+            horizontal_required: false,
         }
     }
 }
@@ -256,6 +260,23 @@ impl<T, W: Widget<T>> Scroll<T, W> {
         Rect::new(x0, y0, x1, y1)
     }
 
+    fn calc_track_eat(&self, env: &Env) -> Size {
+        let track_width = calc_track_width(env);
+
+        Size::new(
+            if self.scrollbars.vertical_required {
+                track_width
+            } else {
+                0.
+            },
+            if self.scrollbars.horizontal_required {
+                track_width
+            } else {
+                0.
+            },
+        )
+    }
+
     /// Draw scrollbar backgrounds regardless of scrollbar style
     fn draw_scrollbar_background(&self, ctx: &mut PaintCtx, viewport: Rect, env: &Env) {
         let track_width = calc_track_width(env);
@@ -286,9 +307,15 @@ impl<T, W: Widget<T>> Scroll<T, W> {
             self.scroll_offset.y + viewport.height(),
         );
 
-        ctx.render_ctx.fill(vertical_rect, &background_brush);
-        ctx.render_ctx.fill(horizontal_rect, &background_brush);
-        ctx.render_ctx.fill(corner_rect, &corner_brush);
+        if self.scrollbars.vertical_required {
+            ctx.render_ctx.fill(vertical_rect, &background_brush);
+        }
+        if self.scrollbars.horizontal_required {
+            ctx.render_ctx.fill(horizontal_rect, &background_brush);
+        }
+        if self.scrollbars.vertical_required || self.scrollbars.horizontal_required {
+            ctx.render_ctx.fill(corner_rect, &corner_brush);
+        }
     }
 
     /// Draw scroll bars.
@@ -310,7 +337,7 @@ impl<T, W: Widget<T>> Scroll<T, W> {
         let edge_width = env.get(theme::SCROLLBAR_EDGE_WIDTH);
 
         // Vertical bar
-        if viewport.height() < self.child_size.height {
+        if self.scrollbars.vertical_required {
             let bounds = self.calc_vertical_bar_bounds(viewport, &env);
             let rect = RoundedRect::from_rect(bounds, radius);
             ctx.render_ctx.fill(rect, &brush);
@@ -318,7 +345,7 @@ impl<T, W: Widget<T>> Scroll<T, W> {
         }
 
         // Horizontal bar
-        if viewport.width() < self.child_size.width {
+        if self.scrollbars.horizontal_required {
             let bounds = self.calc_horizontal_bar_bounds(viewport, &env);
             let rect = RoundedRect::from_rect(bounds, radius);
             ctx.render_ctx.fill(rect, &brush);
@@ -327,7 +354,7 @@ impl<T, W: Widget<T>> Scroll<T, W> {
     }
 
     fn point_hits_vertical_bar(&self, viewport: Rect, pos: Point, env: &Env) -> bool {
-        if viewport.height() < self.child_size.height {
+        if self.scrollbars.vertical_required {
             // Stretch hitbox to edge of widget
             let mut bounds = self.calc_vertical_bar_bounds(viewport, &env);
             bounds.x1 = self.scroll_offset.x + viewport.width();
@@ -338,7 +365,7 @@ impl<T, W: Widget<T>> Scroll<T, W> {
     }
 
     fn point_hits_horizontal_bar(&self, viewport: Rect, pos: Point, env: &Env) -> bool {
-        if viewport.width() < self.child_size.width {
+        if self.scrollbars.horizontal_required {
             // Stretch hitbox to edge of widget
             let mut bounds = self.calc_horizontal_bar_bounds(viewport, &env);
             bounds.y1 = self.scroll_offset.y + viewport.height();
@@ -351,14 +378,12 @@ impl<T, W: Widget<T>> Scroll<T, W> {
 
 impl<T: Data, W: Widget<T>> Widget<T> for Scroll<T, W> {
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut T, env: &Env) {
-        let track_width = calc_track_width(env);
-
         let size = ctx.size();
         let viewport = Rect::from_origin_size(Point::ORIGIN, size);
 
         let paint_size = match self.scrollbar_style {
             ScrollbarStyle::Overlay => ctx.size(),
-            ScrollbarStyle::Inlay => ctx.size() - Size::new(track_width, track_width),
+            ScrollbarStyle::Inlay => ctx.size() - self.calc_track_eat(env),
         };
         let paint_viewport = Rect::from_origin_size(Point::ORIGIN, paint_size);
 
@@ -515,16 +540,28 @@ impl<T: Data, W: Widget<T>> Widget<T> for Scroll<T, W> {
             .set_layout_rect(Rect::from_origin_size(Point::ORIGIN, size));
         let self_size = bc.constrain(self.child_size);
         let _ = self.scroll(Vec2::new(0.0, 0.0), self_size);
+
+        self.scrollbars.vertical_required = self_size.height < self.child_size.height;
+        self.scrollbars.horizontal_required = self_size.width < self.child_size.width;
+
+        let track_width = calc_track_width(env);
+        if self.scrollbars.horizontal_required {
+            self.scrollbars.vertical_required =
+                self_size.height - track_width < self.child_size.height;
+        }
+        if self.scrollbars.vertical_required {
+            self.scrollbars.horizontal_required =
+                self_size.width - track_width < self.child_size.width;
+        }
+
         self_size
     }
 
     fn paint(&mut self, ctx: &mut PaintCtx, data: &T, env: &Env) {
-        let track_width = calc_track_width(env);
-
         let viewport = ctx.size().to_rect();
         let paint_viewport = match self.scrollbar_style {
             ScrollbarStyle::Overlay => viewport,
-            ScrollbarStyle::Inlay => (ctx.size() - Size::new(track_width, track_width)).to_rect(),
+            ScrollbarStyle::Inlay => (ctx.size() - self.calc_track_eat(env)).to_rect(),
         };
 
         ctx.with_save(|ctx| {
