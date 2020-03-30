@@ -213,17 +213,21 @@ impl<T, W: Widget<T>> Scroll<T, W> {
     fn calc_vertical_bar_bounds(&self, viewport: Rect, env: &Env) -> Rect {
         let bar_width = env.get(theme::SCROLLBAR_WIDTH);
         let bar_pad = env.get(theme::SCROLLBAR_PAD);
-
-        let percent_visible = viewport.height() / self.child_size.height;
-        let percent_scrolled = self.scroll_offset.y / (self.child_size.height - viewport.height());
-
-        let length = (percent_visible * viewport.height()).ceil();
-        let length = length.max(SCROLLBAR_MIN_SIZE);
-
         let vertical_padding = bar_pad + calc_track_width(env);
 
-        let top_y_offset =
-            ((viewport.height() - length - vertical_padding) * percent_scrolled).ceil();
+        let track_eat = self.calc_track_eat(env);
+        let eaten_height = viewport.height() - track_eat.height;
+
+        let percent_visible = eaten_height / self.child_size.height;
+        let percent_scrolled = self.scroll_offset.y / (self.child_size.height - eaten_height);
+
+        let length = (percent_visible * (viewport.height() - vertical_padding)).ceil();
+        let length = length
+            .max(SCROLLBAR_MIN_SIZE)
+            .min(viewport.height() - vertical_padding);
+
+        let top_span = (viewport.height() - length - vertical_padding).max(0.);
+        let top_y_offset = (top_span * percent_scrolled).ceil();
         let bottom_y_offset = top_y_offset + length;
 
         let x0 = self.scroll_offset.x + viewport.width() - bar_width - bar_pad;
@@ -238,17 +242,21 @@ impl<T, W: Widget<T>> Scroll<T, W> {
     fn calc_horizontal_bar_bounds(&self, viewport: Rect, env: &Env) -> Rect {
         let bar_width = env.get(theme::SCROLLBAR_WIDTH);
         let bar_pad = env.get(theme::SCROLLBAR_PAD);
-
-        let percent_visible = viewport.width() / self.child_size.width;
-        let percent_scrolled = self.scroll_offset.x / (self.child_size.width - viewport.width());
-
-        let length = (percent_visible * viewport.width()).ceil();
-        let length = length.max(SCROLLBAR_MIN_SIZE);
-
         let horizontal_padding = bar_pad + calc_track_width(env);
 
-        let left_x_offset =
-            ((viewport.width() - length - horizontal_padding) * percent_scrolled).ceil();
+        let track_eat = self.calc_track_eat(env);
+        let eaten_width = viewport.width() - track_eat.width;
+
+        let percent_visible = eaten_width / self.child_size.width;
+        let percent_scrolled = self.scroll_offset.x / (self.child_size.width - eaten_width);
+
+        let length = (percent_visible * (viewport.width() - horizontal_padding)).ceil();
+        let length = length
+            .max(SCROLLBAR_MIN_SIZE)
+            .min(viewport.width() - horizontal_padding);
+
+        let right_span = (viewport.width() - length - horizontal_padding).max(0.);
+        let left_x_offset = (right_span * percent_scrolled).ceil();
         let right_x_offset = left_x_offset + length;
 
         let x0 = self.scroll_offset.x + left_x_offset + bar_pad;
