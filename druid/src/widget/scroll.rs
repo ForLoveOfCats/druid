@@ -213,10 +213,11 @@ impl<T, W: Widget<T>> Scroll<T, W> {
     fn calc_vertical_bar_bounds(&self, viewport: Rect, env: &Env) -> Rect {
         let bar_width = env.get(theme::SCROLLBAR_WIDTH);
         let bar_pad = env.get(theme::SCROLLBAR_PAD);
-        let vertical_padding = bar_pad + calc_track_width(env);
 
         let track_eat = self.calc_track_eat(env);
         let eaten_height = viewport.height() - track_eat.height;
+
+        let vertical_padding = bar_pad + track_eat.height;
 
         let percent_visible = eaten_height / self.child_size.height;
         let percent_scrolled = self.scroll_offset.y / (self.child_size.height - eaten_height);
@@ -242,10 +243,11 @@ impl<T, W: Widget<T>> Scroll<T, W> {
     fn calc_horizontal_bar_bounds(&self, viewport: Rect, env: &Env) -> Rect {
         let bar_width = env.get(theme::SCROLLBAR_WIDTH);
         let bar_pad = env.get(theme::SCROLLBAR_PAD);
-        let horizontal_padding = bar_pad + calc_track_width(env);
 
         let track_eat = self.calc_track_eat(env);
         let eaten_width = viewport.width() - track_eat.width;
+
+        let horizontal_padding = bar_pad + track_eat.width;
 
         let percent_visible = eaten_width / self.child_size.width;
         let percent_scrolled = self.scroll_offset.x / (self.child_size.width - eaten_width);
@@ -300,12 +302,12 @@ impl<T, W: Widget<T>> Scroll<T, W> {
             self.scroll_offset.x + viewport.width() - track_width,
             self.scroll_offset.y,
             self.scroll_offset.x + viewport.width(),
-            self.scroll_offset.y + viewport.height() - track_width,
+            self.scroll_offset.y + viewport.height(),
         );
         let horizontal_rect = Rect::new(
             self.scroll_offset.x,
             self.scroll_offset.y + viewport.height() - track_width,
-            self.scroll_offset.x + viewport.width() - track_width,
+            self.scroll_offset.x + viewport.width(),
             self.scroll_offset.y + viewport.height(),
         );
         let corner_rect = Rect::new(
@@ -321,7 +323,7 @@ impl<T, W: Widget<T>> Scroll<T, W> {
         if self.scrollbars.horizontal_required {
             ctx.render_ctx.fill(horizontal_rect, &background_brush);
         }
-        if self.scrollbars.vertical_required || self.scrollbars.horizontal_required {
+        if self.scrollbars.vertical_required && self.scrollbars.horizontal_required {
             ctx.render_ctx.fill(corner_rect, &corner_brush);
         }
     }
