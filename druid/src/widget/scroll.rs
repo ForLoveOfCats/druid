@@ -576,7 +576,9 @@ impl<T: Data, W: Widget<T>> Widget<T> for Scroll<T, W> {
             ctx.clip(viewport);
             ctx.transform(Affine::translate(-self.scroll_offset));
 
-            self.draw_scrollbar_background(ctx, viewport, env);
+            if self.scrollbar_style == ScrollbarStyle::Inlay {
+                self.draw_scrollbar_background(ctx, viewport, env);
+            }
             self.draw_bars(ctx, viewport, env);
         });
     }
