@@ -215,7 +215,11 @@ impl<T, W: Widget<T>> Scroll<T, W> {
         let bar_pad = env.get(theme::SCROLLBAR_PAD);
 
         let track_eat = self.calc_track_eat(env);
-        let eaten_height = viewport.height() - track_eat.height;
+        let eaten_height = if self.scrollbar_style == ScrollbarStyle::Overlay {
+            viewport.height()
+        } else {
+            viewport.height() - track_eat.height
+        };
 
         let vertical_padding = bar_pad + track_eat.height;
 
@@ -245,7 +249,11 @@ impl<T, W: Widget<T>> Scroll<T, W> {
         let bar_pad = env.get(theme::SCROLLBAR_PAD);
 
         let track_eat = self.calc_track_eat(env);
-        let eaten_width = viewport.width() - track_eat.width;
+        let eaten_width = if self.scrollbar_style == ScrollbarStyle::Overlay {
+            viewport.width()
+        } else {
+            viewport.width() - track_eat.width
+        };
 
         let horizontal_padding = bar_pad + track_eat.width;
 
