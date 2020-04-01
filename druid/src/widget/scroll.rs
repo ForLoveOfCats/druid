@@ -151,6 +151,7 @@ impl<T, W: Widget<T>> Scroll<T, W> {
     //TODO(ForLoveOfCats) Have a separate constructor for each style
     pub fn inlay_scrollbars(mut self) -> Self {
         self.scrollbar_style = ScrollbarStyle::Inlay;
+        self.scrollbars.opacity = 1.0;
         self
     }
 
