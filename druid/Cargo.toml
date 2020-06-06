@@ -48,4 +48,4 @@ console_log = "0.2.0"
 [dev-dependencies]
 float-cmp = { version = "0.8.0", features = ["std"], default-features = false }
 tempfile = "3.1.0"
-piet-common = { version = "0.1.1", features = ["png"] }
+piet-common = { git = "https://github.com/ForLoveOfCats/piet", branch = "CloneText", features = ["png"] }
