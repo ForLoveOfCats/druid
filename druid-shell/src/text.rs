@@ -101,7 +101,7 @@
 //! `InputHandler` calls are simulated from keypresses on other platforms, which
 //! doesn't allow for IME input, dead keys, etc.
 
-use crate::keyboard::{KbKey, KeyEvent};
+use crate::keyboard::{Code, KbKey, KeyEvent};
 use crate::kurbo::{Point, Rect};
 use crate::piet::HitTestPoint;
 use crate::window::{TextFieldToken, WinHandler};
@@ -469,6 +469,7 @@ pub fn simulate_input<H: WinHandler + ?Sized>(
         None => return false,
     };
     let mut input_handler = handler.acquire_input_lock(token, true);
+
     match event.key {
         KbKey::Character(c) if !event.mods.ctrl() && !event.mods.meta() && !event.mods.alt() => {
             let selection = input_handler.selection();
@@ -476,6 +477,7 @@ pub fn simulate_input<H: WinHandler + ?Sized>(
             let new_caret_index = selection.min() + c.len();
             input_handler.set_selection(Selection::caret(new_caret_index));
         }
+
         KbKey::ArrowLeft => {
             let movement = if event.mods.ctrl() {
                 Movement::Word(Direction::Left)
@@ -488,6 +490,7 @@ pub fn simulate_input<H: WinHandler + ?Sized>(
                 input_handler.handle_action(Action::Move(movement));
             }
         }
+
         KbKey::ArrowRight => {
             let movement = if event.mods.ctrl() {
                 Movement::Word(Direction::Right)
@@ -500,6 +503,7 @@ pub fn simulate_input<H: WinHandler + ?Sized>(
                 input_handler.handle_action(Action::Move(movement));
             }
         }
+
         KbKey::ArrowUp => {
             let movement = Movement::Vertical(VerticalMovement::LineUp);
             if event.mods.shift() {
@@ -508,6 +512,7 @@ pub fn simulate_input<H: WinHandler + ?Sized>(
                 input_handler.handle_action(Action::Move(movement));
             }
         }
+
         KbKey::ArrowDown => {
             let movement = Movement::Vertical(VerticalMovement::LineDown);
             if event.mods.shift() {
@@ -516,6 +521,7 @@ pub fn simulate_input<H: WinHandler + ?Sized>(
                 input_handler.handle_action(Action::Move(movement));
             }
         }
+
         KbKey::Backspace => {
             let movement = if event.mods.ctrl() {
                 Movement::Word(Direction::Upstream)
@@ -524,6 +530,7 @@ pub fn simulate_input<H: WinHandler + ?Sized>(
             };
             input_handler.handle_action(Action::Delete(movement));
         }
+
         KbKey::Enter => {
             // I'm sorry windows, you'll get IME soon.
             input_handler.handle_action(Action::InsertNewLine {
@@ -531,6 +538,7 @@ pub fn simulate_input<H: WinHandler + ?Sized>(
                 newline_type: '\n',
             });
         }
+
         KbKey::Tab => {
             let action = if event.mods.shift() {
                 Action::InsertBacktab
@@ -541,11 +549,17 @@ pub fn simulate_input<H: WinHandler + ?Sized>(
             };
             input_handler.handle_action(action);
         }
+
+        _ if event.code == Code::KeyA && event.mods.ctrl() => {
+            input_handler.handle_action(Action::SelectAll);
+        }
+
         _ => {
             handler.release_input_lock(token);
             return false;
         }
     };
+
     handler.release_input_lock(token);
     true
 }

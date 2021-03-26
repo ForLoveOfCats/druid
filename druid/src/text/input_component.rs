@@ -316,6 +316,7 @@ impl<T: TextStorage + EditableText> Widget<T> for TextComponent<T> {
                     self.borrow_mut().selection = selection;
                 }
                 ctx.request_update();
+                ctx.request_paint();
             }
             _ => (),
         }
